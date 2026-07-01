@@ -1,9 +1,9 @@
-# Dat file nay o: .github/workflows/fred.yml  (trong repo GitHub cua Lee)
 name: FRED daily
 on:
+  push:
+  workflow_dispatch:
   schedule:
-    - cron: '0 21 * * *'   # 21:00 UTC = 04:00 gio VN moi ngay
-  workflow_dispatch:        # cho phep bam chay tay tren GitHub
+    - cron: '0 21 * * *'
 permissions:
   contents: write
 jobs:
@@ -12,8 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: '3.12' }
+        with:
+          python-version: '3.12'
       - name: Fetch FRED
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python fetch.py
       - name: Commit
         run: |
