@@ -1,7 +1,8 @@
-"""GitHub Action -> docs/fred.json qua FRED API chinh thuc (can FRED_API_KEY)."""
+"""GitHub Action -> docs/fred.json qua FRED API chinh thuc (api.stlouisfed.org — GitHub VAO DUOC).
+Can API key free (bien moi truong FRED_API_KEY). Khong ghi de neu rong."""
 import json, time, os, urllib.request
 
-SERIES = ["WALCL","RRPONTSYD","WTREGEN","M2SL","BAMLH0A0HYM2","BAMLC0A0CM","T10YIE","T10Y2Y"]
+SERIES = ["WALCL","RRPONTSYD","WTREGEN","M2SL","BAMLH0A0HYM2","BAMLC0A0CM","T10YIE","T10Y2Y","DFII10","ECBASSETSW","JPNASSETS"]
 START = "2018-01-01"
 KEY = os.environ.get("FRED_API_KEY", "").strip()
 
