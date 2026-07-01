@@ -1,43 +1,25 @@
-"""GitHub Action chay file nay MOI NGAY -> keo 8 chuoi FRED -> ghi fred.json.
-Chay tren may chu GitHub (vao FRED binh thuong). App cua Lee doc fred.json qua
-raw.githubusercontent.com (mien nay may Lee VAO DUOC). Khong can API key."""
-import json, time, csv, io, urllib.request, os
-
-SERIES = ["WALCL","RRPONTSYD","WTREGEN","M2SL","BAMLH0A0HYM2","BAMLC0A0CM","T10YIE","T10Y2Y"]
-COSD = "2018-01-01"
-UA = {"User-Agent": "Mozilla/5.0 (fred-relay)"}
-
-def fetch_one(sid):
-    url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=%s&cosd=%s" % (sid, COSD)
-    req = urllib.request.Request(url, headers=UA)
-    raw = urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "ignore")
-    out = []
-    rdr = csv.reader(io.StringIO(raw)); next(rdr, None)
-    for row in rdr:
-        if len(row) < 2 or not row[0].strip():
-            continue
-        v = row[1].strip()
-        if v in ("", ".", "NA"):
-            continue
-        try:
-            ts = int(time.mktime(time.strptime(row[0].strip(), "%Y-%m-%d")))
-            out.append([ts, float(v)])
-        except Exception:
-            continue
-    return out
-
-data = {"updated": int(time.time()), "cosd": COSD, "series": {}}
-for sid in SERIES:
-    try:
-        pts = fetch_one(sid)
-        data["series"][sid] = pts
-        print("OK %s: %d diem" % (sid, len(pts)))
-    except Exception as e:
-        print("LOI %s: %s" % (sid, e))
-        data["series"][sid] = []
-
-os.makedirs("docs", exist_ok=True)
-with open("docs/fred.json", "w", encoding="utf-8") as f:
-    json.dump(data, f, separators=(",", ":"))
-print("Da ghi docs/fred.json (%d chuoi)" % len(data["series"]))
-    
+name: FRED daily
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 21 * * *'
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch FRED
+        run: python fetch.py
+      - name: Commit
+        run: |
+          git config user.name "fred-bot"
+          git config user.email "fred-bot@users.noreply.github.com"
+          git add docs/fred.json
+          git commit -m "update fred.json" || echo "no change"
+          git push
