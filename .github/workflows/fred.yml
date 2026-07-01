@@ -1,0 +1,24 @@
+# Dat file nay o: .github/workflows/fred.yml  (trong repo GitHub cua Lee)
+name: FRED daily
+on:
+  schedule:
+    - cron: '0 21 * * *'   # 21:00 UTC = 04:00 gio VN moi ngay
+  workflow_dispatch:        # cho phep bam chay tay tren GitHub
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Fetch FRED
+        run: python fetch.py
+      - name: Commit
+        run: |
+          git config user.name "fred-bot"
+          git config user.email "fred-bot@users.noreply.github.com"
+          git add docs/fred.json
+          git commit -m "update fred.json" || echo "no change"
+          git push
