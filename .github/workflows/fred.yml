@@ -6,9 +6,6 @@ on:
     - cron: '0 21 * * *'
 permissions:
   contents: write
-concurrency:
-  group: fred-daily
-  cancel-in-progress: true
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -21,11 +18,13 @@ jobs:
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python fetch.py
+      - name: Fetch World Bank
+        run: python fetch_wb.py
       - name: Commit
         run: |
           git config user.name "fred-bot"
           git config user.email "fred-bot@users.noreply.github.com"
-          git add docs/fred.json
-          git commit -m "update fred.json" || echo "no change"
+          git add docs/
+          git commit -m "update fred.json + wb.json" || echo "no change"
           git pull --rebase --autostash origin main || true
           git push
