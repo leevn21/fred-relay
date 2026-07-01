@@ -1,14 +1,27 @@
-import urllib.request, urllib.error
-def probe(u):
-    try:
-        r = urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent":"Mozilla/5.0"}), timeout=15)
-        return "OK %s len=%d" % (getattr(r,'status',200), len(r.read()))
-    except urllib.error.HTTPError as e:
-        return "HTTP %d (VAO DUOC!)" % e.code
-    except Exception as e:
-        return "FAIL: %s" % e
-
-print("api.stlouisfed.org:", probe("https://api.stlouisfed.org/fred/series/observations?series_id=WALCL&file_type=json"))
-print("fred graph       :", probe("https://fred.stlouisfed.org/graph/fredgraph.csv?id=WALCL"))
-print("stooq            :", probe("https://stooq.com/q/d/l/?s=fred_walcl&i=d"))
-raise SystemExit(1)
+name: FRED daily
+on:
+  push:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 21 * * *'
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch FRED
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python fetch.py
+      - name: Commit
+        run: |
+          git config user.name "fred-bot"
+          git config user.email "fred-bot@users.noreply.github.com"
+          git add docs/fred.json
+          git commit -m "update fred.json" || echo "no change"
+          git push
