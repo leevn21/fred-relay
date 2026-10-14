@@ -1,41 +1,44 @@
-name: FRED daily
-on:
-  push:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 21 * * *'
-permissions:
-  contents: write
-concurrency:
-  group: fred-relay
-  cancel-in-progress: false
-jobs:
-  fetch:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Fetch FRED
-        env:
-          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-        run: python fetch.py
-      - name: Fetch FRED bo sung (Ban tin thuc chien)
-        env:
-          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-        run: python fetch_ext.py || echo "fred_ext loi - bo qua"
-      - name: Fetch World Bank
-        run: python fetch_wb.py
-      - name: Commit
-        run: |
-          git config user.name "fred-bot"
-          git config user.email "fred-bot@users.noreply.github.com"
-          git add docs/
-          git commit -m "update fred.json + wb.json" || { echo "no change"; exit 0; }
-          for i in 1 2 3; do
-            git pull --rebase -X theirs origin main && git push && exit 0
-            git rebase --abort 2>/dev/null || true
-            sleep 10
-          done
-          exit 1
+"""GitHub Action -> docs/fred.json qua FRED API chinh thuc (api.stlouisfed.org — GitHub VAO DUOC).
+Can API key free (bien moi truong FRED_API_KEY). Khong ghi de neu rong."""
+import json, time, os, urllib.request
+
+SERIES = ["WALCL","RRPONTSYD","WTREGEN","M2SL","BAMLH0A0HYM2","BAMLC0A0CM","T10YIE","T10Y2Y","DFII10","ECBASSETSW","JPNASSETS"]
+START = "2018-01-01"
+KEY = os.environ.get("FRED_API_KEY", "").strip()
+
+def fetch_one(sid):
+    u = ("https://api.stlouisfed.org/fred/series/observations?series_id=%s&api_key=%s"
+         "&file_type=json&observation_start=%s" % (sid, KEY, START))
+    req = urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"})
+    raw = urllib.request.urlopen(req, timeout=30).read().decode("utf-8", "ignore")
+    obs = json.loads(raw).get("observations", [])
+    out = []
+    for o in obs:
+        v = (o.get("value") or "").strip()
+        if v in ("", "."):
+            continue
+        try:
+            ts = int(time.mktime(time.strptime(o["date"], "%Y-%m-%d")))
+            out.append([ts, float(v)])
+        except Exception:
+            continue
+    return out
+
+if not KEY:
+    print("THIEU FRED_API_KEY (chua tao secret?)"); raise SystemExit(1)
+
+data = {"updated": int(time.time()), "cosd": START, "series": {}}
+total = 0
+for sid in SERIES:
+    try:
+        pts = fetch_one(sid); data["series"][sid] = pts; total += len(pts)
+        print("OK %s: %d diem" % (sid, len(pts)))
+    except Exception as e:
+        print("LOI %s: %s" % (sid, str(e)[:100])); data["series"][sid] = []
+
+if total == 0:
+    print("TAT CA RONG -> khong ghi de."); raise SystemExit(1)
+os.makedirs("docs", exist_ok=True)
+with open("docs/fred.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, separators=(",", ":"))
+print("Da ghi docs/fred.json — total=%d" % total)
