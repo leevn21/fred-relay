@@ -18,6 +18,10 @@ jobs:
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
         run: python fetch.py
+      - name: Fetch FRED bo sung (Ban tin thuc chien)
+        env:
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: python fetch_ext.py || echo "fred_ext loi - bo qua"
       - name: Fetch World Bank
         run: python fetch_wb.py
       - name: Commit
